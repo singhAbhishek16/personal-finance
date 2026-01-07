@@ -5,8 +5,7 @@ import pandas
 import streamlit as st
 from datetime import datetime
 
-# BASE_URL = "https://budget.abhishekprojects.com/api/v1"
-BASE_URL = "http://localhost/api/v1"
+BASE_URL = "https://budget.abhishekprojects.com/api/v1"
 # API_TOKEN = st.secrets["api_token"]
 
 # function to show security pop-up to user
@@ -203,6 +202,7 @@ def send_to_firefly(api_token):
     #####################################
     # we have dataframe in "data" variable. now, we need to create json object that will be sent to firefly api endpoint
     #####################################
+    st.write(f'token received in send_to_firefly(): {api_token}')
     with st.spinner("sending data in-progress ...", show_time=True):
         temp_df = data
         temp_df.rename(columns={'Txn Date': 'date', 'Description': 'description', 'tagged category': 'category_name'},
@@ -284,6 +284,8 @@ def send_to_firefly(api_token):
 # function to check firefly login
 @st.dialog("Login")
 def login_to_firefly():
+    if 'api_token' not in st.session_state:
+        st.session_state.api_token = "dummytoken"
     connection = create_connection()
     token = None
     try:
@@ -298,6 +300,7 @@ def login_to_firefly():
                 if row:
                     # Password already stored
                     token = row[1]
+                    st.session_state.api_token = token
                     st.success(
                         "Token attached to your email is found. All good to proceed your expenses details to firefly!")
 
@@ -314,13 +317,12 @@ def login_to_firefly():
                                     (email, token),
                                 )
                     connection.commit()
+                    st.session_state.api_token = token
                     st.success("Token saved. Next time you won't need to enter it again. All good to proceed to firefly!")
 
-
-        st.write(f'fetched token is: {token}')
         send_button = st.button("Send to firefly")
         if send_button:
-            send_to_firefly(token)
+            send_to_firefly(st.session_state.api_token)
 
 
         if not email:
