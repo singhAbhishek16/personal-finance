@@ -5,7 +5,8 @@ import pandas
 import streamlit as st
 from datetime import datetime
 
-BASE_URL = "https://budget.abhishekprojects.com/api/v1"
+# BASE_URL = "https://budget.abhishekprojects.com/api/v1"
+BASE_URL = "http://localhost/api/v1"
 # API_TOKEN = st.secrets["api_token"]
 
 # function to show security pop-up to user
@@ -65,105 +66,115 @@ def user_tags():
 
 # function to create connection with database
 def create_connection():
-    with sqlite3.connect('shop_category_mapping.db') as connection:
-        cursor = connection.cursor()
-    return connection, cursor
+    # with sqlite3.connect('shop_category_mapping.db') as connection:
+    #     cursor = connection.cursor()
+    # return connection, cursor
+    return sqlite3.connect('shop_category_mapping.db')
 
 # function to ask user to categorise his expense
-def expense_category(cursor, col_description, my_tags_list_test):
-    count_credit_transactions = 0
-    existing_rows = 0
+def expense_category(col_description, my_tags_list_test):
+    connection = create_connection()
+    try:
+        cursor = connection.cursor()
+        count_credit_transactions = 0
+        existing_rows = 0
 
-    # goes through each row and updates expense category in database
-    for number in range(len(col_description)):
-        each_row = col_description[number]
-        if each_row.startswith("BY") or each_row.startswith("CREDIT") or each_row.startswith("by"):
-            # TODO: count_credit_transactions ki zaroorat hai?
-            count_credit_transactions += 1
-            continue
-        parts = each_row.split('/')
-        shop = parts[3].strip().lower()
-        comment = parts[-1].lower()
+        # goes through each row and updates expense category in database
+        for number in range(len(col_description)):
+            each_row = col_description[number]
+            if each_row.startswith("BY") or each_row.startswith("CREDIT") or each_row.startswith("by"):
+                # TODO: count_credit_transactions ki zaroorat hai?
+                count_credit_transactions += 1
+                continue
+            parts = each_row.split('/')
+            shop = parts[3].strip().lower()
+            comment = parts[-1].lower()
 
-        # check if shop details already exists in db
-        cursor.execute("SELECT * FROM table_category WHERE shop = ? LIMIT 1", (shop,))
-        shop_exists = cursor.fetchone()
-        if shop_exists:
-            st.markdown(
-                f"shop: :green-background[{shop}] exists in db under category :orange-background[{shop_exists[1]}] & tagged as :orange-background[{shop_exists[2]}]")
-            existing_rows += 1
-            continue
+            # check if shop details already exists in db
+            cursor.execute("SELECT * FROM table_category WHERE shop = ? LIMIT 1", (shop,))
+            shop_exists = cursor.fetchone()
+            if shop_exists:
+                st.markdown(
+                    f"shop: :green-background[{shop}] exists in db under category :orange-background[{shop_exists[1]}] & tagged as :orange-background[{shop_exists[2]}]")
+                existing_rows += 1
+                continue
 
-        st.write(f'shop: :red-background[{shop}] doesnt exist in db')
-        with st.form(f'shop_{shop}_form'):
-            user_input_category = st.selectbox(f'shop {shop} is tagged with {comment}', my_category_list_test)
-            user_input_tag = st.selectbox('tags?', my_tags_list_test)
-            submit = st.form_submit_button("Submit")
+            st.write(f'shop: :red-background[{shop}] doesnt exist in db')
+            with st.form(f'shop_{shop}_form'):
+                user_input_category = st.selectbox(f'shop {shop} is tagged with {comment}', my_category_list_test)
+                user_input_tag = st.selectbox('tags?', my_tags_list_test)
+                submit = st.form_submit_button("Submit")
 
-        # pause script execution until all expenses are categorised
-        if not submit:
-            st.stop()
+            # pause script execution until all expenses are categorised
+            if not submit:
+                st.stop()
 
-        # If we reach here, form was submitted in this rerun by streamlit
-        insert_query = "INSERT INTO table_category VALUES (?, ?, ?)"
-        cursor.execute(insert_query, (shop, user_input_category, user_input_tag))
-        connection.commit()
-        print(f"Inserted ({shop}, {user_input_category}, {user_input_tag}) into table_category.")
-        st.markdown("Submitted successfully! ✅")
+            # If we reach here, form was submitted in this rerun by streamlit
+            insert_query = "INSERT INTO table_category VALUES (?, ?, ?)"
+            cursor.execute(insert_query, (shop, user_input_category, user_input_tag))
+            connection.commit()
+            print(f"Inserted ({shop}, {user_input_category}, {user_input_tag}) into table_category.")
+            st.markdown("Submitted successfully! ✅")
 
-        # Optional: after inserting, trigger a clean rerun so UI updates nicely
-        st.rerun()
+            # Optional: after inserting, trigger a clean rerun so UI updates nicely
+            st.rerun()
 
+    finally:
+        connection.close()
     return count_credit_transactions
 
 
 # function to add all expenses for each category
-def expense_per_category(cursor, count_credit_transactions):
-    cursor.execute("SELECT DISTINCT category FROM table_category")
-    categories = [row[0] for row in cursor.fetchall()]
-    # Create a dictionary to hold <category_value>_debit variables, all set to 0
-    category_debits = {}
-    for cat in categories:
-        # Replace spaces and special characters with underscores for valid variable names
-        var_name = f"{cat.strip().replace(' ', '_').replace('-', '_')}_debit"
-        category_debits[var_name] = 0
+def expense_per_category(count_credit_transactions):
+    connection = create_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute("SELECT DISTINCT category FROM table_category")
+        categories = [row[0] for row in cursor.fetchall()]
+        # Create a dictionary to hold <category_value>_debit variables, all set to 0
+        category_debits = {}
+        for cat in categories:
+            # Replace spaces and special characters with underscores for valid variable names
+            var_name = f"{cat.strip().replace(' ', '_').replace('-', '_')}_debit"
+            category_debits[var_name] = 0
 
-    # category ke according amount calculation. eg: how much grocery spend in nov
-    # category_type = "party"
-    # total_debit = 0
-    if data is not None and not data.empty:
-        col_debit = data.get("Debit")
-    category_to_update_csv = []
-    tags_to_update_csv = []
-    for number in range(len(col_description)):
-        each_row = col_description[number]
-        if each_row.startswith("BY") or each_row.startswith("CREDIT") or each_row.startswith(
-                "BULK") or each_row.startswith("by"):
-            # self-note: BULK match needs to be added for one jan 31 transaction
-            count_credit_transactions += 1
-            category_to_update_csv.append('credit')
-            tags_to_update_csv.append('credit')
-            continue
-        parts = each_row.split('/')
-        shop = parts[3].strip().lower()
+        # category ke according amount calculation. eg: how much grocery spend in nov
+        # category_type = "party"
+        # total_debit = 0
+        if data is not None and not data.empty:
+            col_debit = data.get("Debit")
+        category_to_update_csv = []
+        tags_to_update_csv = []
+        for number in range(len(col_description)):
+            each_row = col_description[number]
+            if each_row.startswith("BY") or each_row.startswith("CREDIT") or each_row.startswith(
+                    "BULK") or each_row.startswith("by"):
+                # self-note: BULK match needs to be added for one jan 31 transaction
+                count_credit_transactions += 1
+                category_to_update_csv.append('credit')
+                tags_to_update_csv.append('credit')
+                continue
+            parts = each_row.split('/')
+            shop = parts[3].strip().lower()
 
-        # check if shop details already exists in db
-        cursor.execute("SELECT 1 FROM table_category WHERE shop = ? LIMIT 1", (shop,))
-        shop_exists = cursor.fetchone()
-        if shop_exists:
-            # fetch its category
-            cursor.execute("SELECT category, tags FROM table_category WHERE shop = ?", (shop,))
-            shop_s_category = cursor.fetchone()
-            # jis category ka mile uska debit variable add ho
-            debit_amount = col_debit[number]
-            debit_amount_float = float(debit_amount.replace(',', ''))
-            found_category = shop_s_category[0]
-            found_tags = shop_s_category[1]
-            category_to_update_csv.append(found_category)
-            tags_to_update_csv.append(found_tags)
-            amount_goes_to = f"{found_category.strip().replace(' ', '_').replace('-', '_')}_debit"
-            category_debits[amount_goes_to] += debit_amount_float
-
+            # check if shop details already exists in db
+            cursor.execute("SELECT 1 FROM table_category WHERE shop = ? LIMIT 1", (shop,))
+            shop_exists = cursor.fetchone()
+            if shop_exists:
+                # fetch its category
+                cursor.execute("SELECT category, tags FROM table_category WHERE shop = ?", (shop,))
+                shop_s_category = cursor.fetchone()
+                # jis category ka mile uska debit variable add ho
+                debit_amount = col_debit[number]
+                debit_amount_float = float(debit_amount.replace(',', ''))
+                found_category = shop_s_category[0]
+                found_tags = shop_s_category[1]
+                category_to_update_csv.append(found_category)
+                tags_to_update_csv.append(found_tags)
+                amount_goes_to = f"{found_category.strip().replace(' ', '_').replace('-', '_')}_debit"
+                category_debits[amount_goes_to] += debit_amount_float
+    finally:
+        connection.close()
     return category_debits, category_to_update_csv, tags_to_update_csv
 
 # function to display expense per category graph
@@ -187,6 +198,138 @@ def updated_csv(data, category_to_update_csv, tags_to_update_csv):
     data['tags'] = tags_to_update_csv
     st.write(data)
 
+# function to send data to firefly
+def send_to_firefly(api_token):
+    #####################################
+    # we have dataframe in "data" variable. now, we need to create json object that will be sent to firefly api endpoint
+    #####################################
+    with st.spinner("sending data in-progress ...", show_time=True):
+        temp_df = data
+        temp_df.rename(columns={'Txn Date': 'date', 'Description': 'description', 'tagged category': 'category_name'},
+                       inplace=True)
+
+        withdrawal_df = temp_df[temp_df['Credit'].isna()]  # rows where credit is None/NaN
+        withdrawal_df.drop(columns=['Credit'], inplace=True)
+        withdrawal_df.rename(columns={'Debit': 'amount'}, inplace=True)
+
+        deposit_df = temp_df[temp_df['Debit'].isna()]  # rows where debit is None/NaN
+        deposit_df.drop(columns=['Debit'], inplace=True)
+        deposit_df.rename(columns={'Credit': 'amount'}, inplace=True)
+
+        ### send deposit data to firefly ###
+        for index, row in deposit_df.iterrows():
+
+            # goes row by row
+            # make format that firefly will accept
+            json_data = row.to_dict()
+            json_payload = json.dumps(json_data) # contains date, description, amount, category_name, tags
+            date_obj = datetime.strptime(json_data["date"], "%d %B %Y")
+            formatted_date = date_obj.strftime("%Y-%m-%d")
+            transaction = {
+                "type": "deposit",
+                "date": formatted_date,
+                "amount": json_data["amount"].replace(",", ""),  # optional: clean amount formatting
+                "description": json_data["description"],
+                "destination_id": 1
+            }
+            deposit = {
+                "transactions": [transaction]
+            }
+
+            url = f"{BASE_URL}/transactions"
+            headers = {
+                "Authorization": f"Bearer {api_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            response = requests.post(url, headers=headers, json=deposit)
+            if response.status_code != 200 and response.status_code != 201:
+                st.write(
+                    f"Failed to post row {index}. Status code: {response.status_code}, Response: {response.text}")
+
+        ########## send withdrawl data to firefly ##########
+        for index, row in withdrawal_df.iterrows():
+
+            # goes row by row
+            # make format that firefly will accept
+            json_data = row.to_dict()
+            json_payload = json.dumps(json_data) # contains date, description, amount, category_name, tags
+            date_obj = datetime.strptime(json_data["date"], "%d %B %Y")
+            formatted_date = date_obj.strftime("%Y-%m-%d")
+            transaction = {
+                "type": "withdrawal",
+                "date": formatted_date,
+                "amount": json_data["amount"].replace(",", ""),  # optional: clean amount formatting
+                "description": json_data["description"],
+                "source_id": 1,
+                "category_name": json_data["category_name"],
+                "tags": json_data["tags"]
+            }
+            deposit = {
+                "transactions": [transaction]
+            }
+
+            url = f"{BASE_URL}/transactions"
+            headers = {
+                "Authorization": f"Bearer {api_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            response = requests.post(url, headers=headers, json=deposit)
+            if response.status_code != 200 and response.status_code != 201:
+                st.write(f"Failed to post row {index}. Status code: {response.status_code}, Response: {response.text}")
+
+    st.success("sent successfully. head over to ...!")
+
+# function to check firefly login
+@st.dialog("Login")
+def login_to_firefly():
+    connection = create_connection()
+    token = None
+    try:
+        cursor = connection.cursor()
+        with st.form("email_form"):
+            email = st.text_input("Email")
+            check_for_token = st.form_submit_button("Check my token")
+            if check_for_token:
+                # Step 2: Check if email exists
+                cursor.execute("SELECT * FROM email_token_mapping WHERE email = ? LIMIT 1", (email,))
+                row = cursor.fetchone()  # cursor.fetchone fetches row, to fetch token use row[1]
+                if row:
+                    # Password already stored
+                    token = row[1]
+                    st.success(
+                        "Token attached to your email is found. All good to proceed your expenses details to firefly!")
+
+            # step 3: if email doesn't exist
+            if token is None or token=="":
+                token = st.text_input("Enter token", type="password")
+                save_token = st.form_submit_button("Save and proceed")
+                if save_token:
+                    if not token:
+                        st.warning("Please enter a token.")
+                        return
+                    cursor.execute(
+                                    "INSERT INTO email_token_mapping (email, token) VALUES (?, ?)",
+                                    (email, token),
+                                )
+                    connection.commit()
+                    st.success("Token saved. Next time you won't need to enter it again. All good to proceed to firefly!")
+
+
+        st.write(f'fetched token is: {token}')
+        send_button = st.button("Send to firefly")
+        if send_button:
+            send_to_firefly(token)
+
+
+        if not email:
+            st.warning("Please enter an email.")
+            return
+
+    finally:
+        connection.close()
+
 
 security_info()
 data, col_description = user_statement()
@@ -194,16 +337,18 @@ st.subheader("your raw bank statement looks like -")
 st.write(data)
 my_category_list_test = user_categories()
 user_input_tags, my_tags_list_test = user_tags()
-connection, cursor = create_connection()
+# connection, cursor = create_connection()
 # my_category_list is not used. have put for abhishek's expense category
 my_category_list = ['scooty operation', 'personal shopping need', 'personal shopping luxury', 'outside food need', 'outside food luxury', 'luxurychai', 'grocery', 'blr electricity bill', 'pat electricity bill', 'medicine', 'festive expense', 'khet expense', 'subscription', 'urban company', 'rent', 'cook', 'trip', 'upi wallet', 'amazon', 'simpl', 'untrackable', 'phone bill', 'internet bill', 'travel', 'q commerce']
-count_credit_transactions = expense_category(cursor, col_description, my_tags_list_test)
-category_debits, category_to_update_csv, tags_to_update_csv = expense_per_category(cursor, count_credit_transactions)
+count_credit_transactions = expense_category(col_description, my_tags_list_test)
+category_debits, category_to_update_csv, tags_to_update_csv = expense_per_category(count_credit_transactions)
 graph_expense_per_category(category_debits)
 updated_csv(data, category_to_update_csv, tags_to_update_csv)
 
+if st.button('login to firefly'):
+    login_to_firefly()
+
 try:
-    # display raw input to user
 
     st.info(
         "**Note**:\n\n -> this application is designed to :blue-background[not] store any of your data. above analysis is performed only in memory,"
@@ -215,87 +360,7 @@ try:
         icon="ℹ️"
     )
 
-    if st.button('send to firefly-iii'):
-        #####################################
-        # we have dataframe in "data" variable. now, we need to create json object that will be sent to firefly api endpoint
-        #####################################
-        with st.spinner("sending data in-progress ...", show_time=True):
-            temp_df = data
-            temp_df.rename(columns={'Txn Date': 'date', 'Description': 'description', 'tagged category': 'category_name'},
-                           inplace=True)
 
-            withdrawal_df = temp_df[temp_df['Credit'].isna()]  # rows where credit is None/NaN
-            withdrawal_df.drop(columns=['Credit'], inplace=True)
-            withdrawal_df.rename(columns={'Debit': 'amount'}, inplace=True)
-
-            deposit_df = temp_df[temp_df['Debit'].isna()]  # rows where debit is None/NaN
-            deposit_df.drop(columns=['Debit'], inplace=True)
-            deposit_df.rename(columns={'Credit': 'amount'}, inplace=True)
-
-            ### send deposit data to firefly ###
-            for index, row in deposit_df.iterrows():
-
-                # goes row by row
-                # make format that firefly will accept
-                json_data = row.to_dict()
-                json_payload = json.dumps(json_data) # contains date, description, amount, category_name, tags
-                date_obj = datetime.strptime(json_data["date"], "%d %B %Y")
-                formatted_date = date_obj.strftime("%Y-%m-%d")
-                transaction = {
-                    "type": "deposit",
-                    "date": formatted_date,
-                    "amount": json_data["amount"].replace(",", ""),  # optional: clean amount formatting
-                    "description": json_data["description"],
-                    "destination_id": 1
-                }
-                deposit = {
-                    "transactions": [transaction]
-                }
-
-                url = f"{BASE_URL}/transactions"
-                headers = {
-                    "Authorization": f"Bearer {API_TOKEN}",
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                }
-                response = requests.post(url, headers=headers, json=deposit)
-                if response.status_code != 200 and response.status_code != 201:
-                    st.write(
-                        f"Failed to post row {index}. Status code: {response.status_code}, Response: {response.text}")
-
-            ########## send withdrawl data to firefly ##########
-            for index, row in withdrawal_df.iterrows():
-
-                # goes row by row
-                # make format that firefly will accept
-                json_data = row.to_dict()
-                json_payload = json.dumps(json_data) # contains date, description, amount, category_name, tags
-                date_obj = datetime.strptime(json_data["date"], "%d %B %Y")
-                formatted_date = date_obj.strftime("%Y-%m-%d")
-                transaction = {
-                    "type": "withdrawal",
-                    "date": formatted_date,
-                    "amount": json_data["amount"].replace(",", ""),  # optional: clean amount formatting
-                    "description": json_data["description"],
-                    "source_id": 1,
-                    "category_name": json_data["category_name"],
-                    "tags": json_data["tags"]
-                }
-                deposit = {
-                    "transactions": [transaction]
-                }
-
-                url = f"{BASE_URL}/transactions"
-                headers = {
-                    "Authorization": f"Bearer {API_TOKEN}",
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                }
-                response = requests.post(url, headers=headers, json=deposit)
-                if response.status_code != 200 and response.status_code != 201:
-                    st.write(f"Failed to post row {index}. Status code: {response.status_code}, Response: {response.text}")
-
-        st.success("sent successfully. head over to ...!")
     ########
 
     st.write(
