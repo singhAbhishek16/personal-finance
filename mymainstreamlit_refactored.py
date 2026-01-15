@@ -5,7 +5,8 @@ import pandas
 import streamlit as st
 from datetime import datetime
 
-BASE_URL = "https://budget.abhishekprojects.com/api/v1"
+# BASE_URL = "https://budget.abhishekprojects.com/api/v1"
+BASE_URL = "http://localhost/api/v1"
 # API_TOKEN = st.secrets["api_token"]
 
 # function to show security pop-up to user
@@ -198,11 +199,10 @@ def updated_csv(data, category_to_update_csv, tags_to_update_csv):
     st.write(data)
 
 # function to send data to firefly
-def send_to_firefly(api_token):
+def send_to_firefly(api_token, firefly_bank_id):
     #####################################
     # we have dataframe in "data" variable. now, we need to create json object that will be sent to firefly api endpoint
     #####################################
-    st.write(f'token received in send_to_firefly(): {api_token}')
     with st.spinner("sending data in-progress ...", show_time=True):
         temp_df = data
         temp_df.rename(columns={'Txn Date': 'date', 'Description': 'description', 'tagged category': 'category_name'},
@@ -230,7 +230,7 @@ def send_to_firefly(api_token):
                 "date": formatted_date,
                 "amount": json_data["amount"].replace(",", ""),  # optional: clean amount formatting
                 "description": json_data["description"],
-                "destination_id": 1
+                "destination_id": firefly_bank_id
             }
             deposit = {
                 "transactions": [transaction]
@@ -261,7 +261,7 @@ def send_to_firefly(api_token):
                 "date": formatted_date,
                 "amount": json_data["amount"].replace(",", ""),  # optional: clean amount formatting
                 "description": json_data["description"],
-                "source_id": 1,
+                "source_id": firefly_bank_id,
                 "category_name": json_data["category_name"],
                 "tags": json_data["tags"]
             }
@@ -279,7 +279,7 @@ def send_to_firefly(api_token):
             if response.status_code != 200 and response.status_code != 201:
                 st.write(f"Failed to post row {index}. Status code: {response.status_code}, Response: {response.text}")
 
-    st.success("sent successfully. head over to ...!")
+    st.success("sent successfully. head over to https://budget.abhishekprojects.com/!")
 
 # function to check firefly login
 @st.dialog("Login")
@@ -300,29 +300,40 @@ def login_to_firefly():
                 if row:
                     # Password already stored
                     token = row[1]
+                    bank = row[2]
+                    firefly_bank_id = row[3]
                     st.session_state.api_token = token
+                    st.session_state.bank = bank
+                    st.session_state.firefly_bank_id = firefly_bank_id
                     st.success(
-                        "Token attached to your email is found. All good to proceed your expenses details to firefly!")
-
+                        f"Details attached to your email is found. All good to proceed your expenses details to firefly!")
+                else:
+                    st.markdown(
+                        ":orange-badge[⚠️ You seem to be new user]"
+                    )
             # step 3: if email doesn't exist
             if token is None or token=="":
                 token = st.text_input("Enter token", type="password")
+                bank = st.text_input("Enter your bank name")
+                firefly_bank_id = st.text_input("Enter firefly bank id", help="firefly login >> accounts >> https://budget.abhishekprojects.com/accounts/show/<id>/")
                 save_token = st.form_submit_button("Save and proceed")
                 if save_token:
                     if not token:
                         st.warning("Please enter a token.")
                         return
                     cursor.execute(
-                                    "INSERT INTO email_token_mapping (email, token) VALUES (?, ?)",
-                                    (email, token),
+                                    "INSERT INTO email_token_mapping (email, token, bank, firefly_bank_id) VALUES (?, ?, ?, ?)",
+                                    (email, token, bank, firefly_bank_id),
                                 )
                     connection.commit()
                     st.session_state.api_token = token
-                    st.success("Token saved. Next time you won't need to enter it again. All good to proceed to firefly!")
+                    st.session_state.bank = bank
+                    st.session_state.firefly_bank_id = firefly_bank_id
+                    st.success(f"Details saved. Next time you won't need to enter it again. All good to proceed to firefly!")
 
         send_button = st.button("Send to firefly")
         if send_button:
-            send_to_firefly(st.session_state.api_token)
+            send_to_firefly(st.session_state.api_token, st.session_state.firefly_bank_id)
 
 
         if not email:
