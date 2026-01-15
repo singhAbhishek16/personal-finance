@@ -361,13 +361,7 @@ category_debits, category_to_update_csv, tags_to_update_csv = expense_per_catego
 graph_expense_per_category(category_debits)
 updated_csv(data, category_to_update_csv, tags_to_update_csv)
 
-
-if st.button('login to firefly'):
-    login_to_firefly()
-
-try:
-
-    st.info(
+st.info(
         "**Note**:\n\n -> this application is designed to :blue-background[not] store any of your data. above analysis is performed only in memory,"
         " and does not go to permanent storage.\n\n"
         "-> if above chart fulfils your need, you can just close the tab & everything will be deleted.\n\n"
@@ -377,17 +371,26 @@ try:
         icon="ℹ️"
     )
 
-
-    ########
-
-    st.write(
+st.write(
         "***best thing?*** i am gonna remember your expense categories for above shops. you won't need to tag them again next month :zap:")
 
-except NameError:
-    st.write("you have not yet uploaded your bank statement!")
 
-except st.errors.StreamlitAPIException:
-    st.write("submit category for above shops to proceed ahead!")
+if st.button('login to firefly'):
+    login_to_firefly()
+
+# try:
+#
+#
+#
+#
+#     ########
+#
+#
+# except NameError:
+#     st.write("you have not yet uploaded your bank statement!")
+#
+# except st.errors.StreamlitAPIException:
+#     st.write("submit category for above shops to proceed ahead!")
 
 # we have dataframe in "data" variable. now, we need to create json object that will be sent to firefly api endpoint
 # temp_df = data
