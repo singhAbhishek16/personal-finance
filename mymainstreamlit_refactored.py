@@ -29,16 +29,19 @@ def security_info():
 
 # function to take input from user and return data and "Description" column
 def user_statement():
-    st.subheader("Ready to analyse you monthly expense?")
-    uploaded_file = st.file_uploader("Choose your bank statement in csv format")
-    data = None
-    col_description = []
-    if uploaded_file is not None:
-        data = pandas.read_csv(uploaded_file)
-        data.drop(columns=['Balance'], inplace=True)
-        data.drop(columns=['Value Date'], inplace=True)
-        data.drop(columns=['Ref No./Cheque No.'], inplace=True)
-        col_description = data["Description"]
+    st.subheader("Ready to analyse your monthly expense?")
+    uploaded_file = st.file_uploader("Supported format: CSV (support for PDFs will be added soon)")
+
+    # Block the rest of the app until a file is uploaded
+    if uploaded_file is None:
+        st.info("Please upload bank statement to continue.")
+        st.stop()  # hard stop: nothing below this line runs in this rerun
+
+    data = pandas.read_csv(uploaded_file)
+    data.drop(columns=['Balance'], inplace=True)
+    data.drop(columns=['Value Date'], inplace=True)
+    data.drop(columns=['Ref No./Cheque No.'], inplace=True)
+    col_description = data["Description"]
 
     return data,col_description
 
@@ -357,6 +360,7 @@ count_credit_transactions = expense_category(col_description, my_tags_list_test)
 category_debits, category_to_update_csv, tags_to_update_csv = expense_per_category(count_credit_transactions)
 graph_expense_per_category(category_debits)
 updated_csv(data, category_to_update_csv, tags_to_update_csv)
+
 
 if st.button('login to firefly'):
     login_to_firefly()
