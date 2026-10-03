@@ -1,20 +1,13 @@
 import json
-from faulthandler import is_enabled
-
 import requests
 import sqlite3
 import pandas
 import streamlit as st
-from pydantic_core.core_schema import none_schema
 from streamlit import columns
 from datetime import datetime
 
-
-# BASE_URL = "http://localhost/api/v1"
-BASE_URL_SERVER = "https://budget.abhishekprojects.com/api/v1"
-# API_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiOGYyNzJjMDA3ZTQwNmU4ZTNlZDZmMWE1OWEyNTQ0ZjY1NjRmYzM1Yzg1ZDAwMzM4Yjg2NTBmZDdiZThmYWVjNGU4ZDE5OTBiMTFlNjIyOWMiLCJpYXQiOjE3NjMzNTc5NTYuMTM2NDYzLCJuYmYiOjE3NjMzNTc5NTYuMTM2NDY0LCJleHAiOjE3OTQ4OTM5NTUuNDIyMTIzLCJzdWIiOiIxIiwic2NvcGVzIjpbXX0.EpfBoUC8a8Rrp26GfhalzYyFZq3VMiD0pXB0dN0ti6SUatg9Ms4iEiRmHgDAAVaEeBKu8HRr4mlDanOwrKdfUkpxLfyNEWdgarqRmT6SLOBbPMZaOunYJ0B6BztnOvKtHW8JIzvqQmoeLgHcoOUC5Ft972Fd3_L9lpygB3VwgnJz25aLK9_bSY6Q3Zt6nvnYqEZBY8CpEdsuDo7ramasx1UGXLVvoMvHDCr2LJ8RFGYyJ0EsorHgbHfZc4zTp4nm2wHnRQmGbbd8tv4kVDSpEkXZxwkgEMDzzzZ3bPqh5gnP9XUuuArLOUBxrWQaGChPoWMYapF7sFloLo6XpVElWDRLP05aDZ4NeXow1e3gDaxbqFHahhmr43nmuOUF4HsdVNW7yYCQyyBR5CVoKWr_FXMkTZRHqwVRmPVFd1fYLLoOaafTwcjQOAmPEMoy-2ge634ZhrzS8CAUZ4rZB7MSh4sXAgOEGP8_pwWCiQXcj1GT9lQ85FW-4xnb7SxYjfMzTV-j6mhiYqEXXwxvF3OlDyLCX_Vnt16CEEGCiTzYBQKuXUinKEfT9LO7DXr-fHeQKo5DumA6XCEnW-edGyQ68wT-5k1Q0nCO87pCQrn9znWI7uwgVTCQHne5onK6oDrbYfesDBZUOEsi47lx8-nCj6Hf9dYPBJGWEOrmtjmwjh4"
-API_TOKEN = None
-
+BASE_URL = "https://budget.abhishekprojects.com/api/v1"
+API_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiYzQ4YjA5MWZjNGJkNDQ4ZDJkM2MyYjM1ZTNiYmFhODg3MzY1Y2U4YTEwMzRkODljZjk1ZjZlNzUwOWQwOTBhMjg5Zjg2N2M4N2NmMTQ2OWIiLCJpYXQiOjE3NjQzMTI4NDUuMDAwOTk3LCJuYmYiOjE3NjQzMTI4NDUuMDAxLCJleHAiOjE3OTU4NDg4NDQuNzU4MTIsInN1YiI6IjEiLCJzY29wZXMiOltdfQ.jVY7m-CpcuRFjz8tax3g4Bjn7-z3Z0PTPEmhlKAzKUFN8tXPfuk4Ze2XIRviVHoo2_V1JA4PwB4MAh3mXlj4L2gto4I1HEJ6JV6SSxZbE7NgKvz-hkneoZv_dLxZ9o6cCDHzFBQrRJKXjt504S7BGx2woDq-DOQ1KqcT48T5PhwCA30Tv-bylPrGKw6-gqOLDy5MfRz5BSRsuZRZNBld3M6YWpPxbQHn786_1cVBykjlBni0ZDoDQfDE27VSaIcxj2I1aBJKITlJpSm_7FJe77nyrGNA5yyItQOokuoKkmoVdQuO2XFL3sPm8W53L3YzSwvsVrUnI1qiYJt8_4uRymyn4tLKJobleWeZk5yxXKewPLGAQBQYt4c2_YCRU6ZsY7dI77pl8kPrDj2iisNjWu34nY4hS0CQAJxJzkmUxhg2ZZpUoeNU1PQ3aNrJAsbXKK8m29rYjuMj4p9SAojS6V9ALH0kYu8eMbH27H1e63ptRqF9_NjR1UcUoeoaGruqlRc9TeokUv4XknWxhGGGCH1oPE99MPSdJMF_fP8jM749PEBZNj8LF4QReNbOasLeXynKWHKq6LpVBGatxf9lm56-IOsmg1QXTBPM05pwFOkSDOSv_p0eE6nq-QdSwyXTaBAiB_r1CxswwesWV9zSJo4PI2XARm0dDU5r-ECNmaI"
 # pop-up dialog to user to carry security related information
 if "show_popup" not in st.session_state:
     st.session_state.show_popup = True
@@ -173,17 +166,14 @@ try:
         icon="ℹ️"
     )
 
-
-    # function to send data to firefly
-    def data_to_firefly():
+    if st.button('send to firefly-iii'):
         #####################################
         # we have dataframe in "data" variable. now, we need to create json object that will be sent to firefly api endpoint
         #####################################
         with st.spinner("sending data in-progress ...", show_time=True):
             temp_df = data
-            temp_df.rename(
-                columns={'Txn Date': 'date', 'Description': 'description', 'tagged category': 'category_name'},
-                inplace=True)
+            temp_df.rename(columns={'Txn Date': 'date', 'Description': 'description', 'tagged category': 'category_name'},
+                           inplace=True)
 
             withdrawal_df = temp_df[temp_df['Credit'].isna()]  # rows where credit is None/NaN
             withdrawal_df.drop(columns=['Credit'], inplace=True)
@@ -199,16 +189,15 @@ try:
                 # goes row by row
                 # make format that firefly will accept
                 json_data = row.to_dict()
-                json_payload = json.dumps(json_data)  # contains date, description, amount, category_name, tags
+                json_payload = json.dumps(json_data) # contains date, description, amount, category_name, tags
                 date_obj = datetime.strptime(json_data["date"], "%d %B %Y")
                 formatted_date = date_obj.strftime("%Y-%m-%d")
-                # TODO: check destination_id token basis pe alag hogi kya?
                 transaction = {
                     "type": "deposit",
                     "date": formatted_date,
                     "amount": json_data["amount"].replace(",", ""),  # optional: clean amount formatting
                     "description": json_data["description"],
-                    "destination_id": 3
+                    "destination_id": 1
                 }
                 deposit = {
                     "transactions": [transaction]
@@ -231,16 +220,15 @@ try:
                 # goes row by row
                 # make format that firefly will accept
                 json_data = row.to_dict()
-                json_payload = json.dumps(json_data)  # contains date, description, amount, category_name, tags
+                json_payload = json.dumps(json_data) # contains date, description, amount, category_name, tags
                 date_obj = datetime.strptime(json_data["date"], "%d %B %Y")
                 formatted_date = date_obj.strftime("%Y-%m-%d")
-                # TODO: check source_id alag token pe alag hogi kya?
                 transaction = {
                     "type": "withdrawal",
                     "date": formatted_date,
                     "amount": json_data["amount"].replace(",", ""),  # optional: clean amount formatting
                     "description": json_data["description"],
-                    "source_id": 3,
+                    "source_id": 1,
                     "category_name": json_data["category_name"],
                     "tags": json_data["tags"]
                 }
@@ -256,69 +244,10 @@ try:
                 }
                 response = requests.post(url, headers=headers, json=deposit)
                 if response.status_code != 200 and response.status_code != 201:
-                    st.write(
-                        f"Failed to post row {index}. Status code: {response.status_code}, Response: {response.text}")
+                    st.write(f"Failed to post row {index}. Status code: {response.status_code}, Response: {response.text}")
 
-
-    # --- Dialog definition ---
-    @st.dialog("Login")
-    def login_dialog():
-        # Step 1: Ask for email
-        with st.form("email_form"):
-            email = st.text_input("Email")
-            submitted_email = st.form_submit_button("Continue")
-
-        if not submitted_email:
-            return
-
-        if not email:
-            st.warning("Please enter an email.")
-            return
-
-        # Step 2: Check if email exists
-        cursor.execute("SELECT token FROM email_token_mapping WHERE email = ? LIMIT 1", (email,))
-        row = cursor.fetchone()
-
-        if row:
-            # Password already stored
-            st.success("Token found. You can proceed without entering it again.")
-            proceed = st.button("Proceed")
-            if proceed:
-                data_to_firefly()
-                st.session_state["logged_in_email"] = email
-                st.rerun()  # closes dialog
-        else:
-            # Email not found: ask for password, then save
-            with st.form("token_form"):
-                token = st.text_input("Enter token", type="password")
-                save_and_proceed = st.form_submit_button("Save & proceed")
-
-            if save_and_proceed:
-                if not token:
-                    st.warning("Please enter a token.")
-                    return
-                cursor.execute(
-                    "INSERT INTO email_token_mapping (email, token) VALUES (?, ?)",
-                    (email, token),
-                )
-                connection.commit()
-                st.success("Token saved. Next time you won't need to enter it again.")
-                st.session_state["logged_in_email"] = email
-                st.rerun()  # closes dialog
-
-
-    if st.button("Login"):
-        login_dialog()
-
-    # logic for handling 'send to firefly' button
-    is_disabled = True
-    if API_TOKEN is not None:
-        is_disabled = False
-    if st.button('send to firefly', disabled=is_disabled):
-        data_to_firefly()
         st.success("sent successfully. head over to ...!")
     ########
-
 
     st.write(
         "***best thing?*** i am gonna remember your expense categories for above shops. you won't need to tag them again next month :zap:")

@@ -1,0 +1,28 @@
+site_name: personal-finance-app docs
+nav:
+  - Home: index.md
+  - Workflow: workingflow.md
+  - Architecture: architecture.md
+  - Notes: commands.md
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+extra:
+  generator: false
+
+plugins:
+  - search

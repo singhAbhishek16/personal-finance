@@ -5,8 +5,7 @@ import pandas
 import streamlit as st
 from datetime import datetime
 
-# BASE_URL = "https://budget.abhishekprojects.com/api/v1"
-BASE_URL = "http://localhost/api/v1"
+BASE_URL = "https://budget.abhishekprojects.com/api/v1"
 # API_TOKEN = st.secrets["api_token"]
 
 # function to show security pop-up to user
