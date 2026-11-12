@@ -4,6 +4,7 @@ import sqlite3
 import pandas
 import streamlit as st
 from datetime import datetime
+from banks import sbi, icici
 
 BASE_URL = "https://budget.abhishekprojects.com/api/v1"
 # API_TOKEN = st.secrets["api_token"]
@@ -26,21 +27,29 @@ def security_info():
         show_info_dialog()
         st.session_state.show_popup = False
 
-# function to take input from user and return data and "Description" column
+# naya bank add karna ho to bas yahaan ek entry aur banks/ me ek file
+BANK_PARSERS = {
+    "SBI": sbi.parse,
+    "ICICI": icici.parse,
+}
+
+# function to take input from user and return data and "description" column
 def user_statement():
     st.subheader("Ready to analyse your monthly expense?")
-    uploaded_file = st.file_uploader("Supported format: CSV (support for PDFs will be added soon)")
+
+    # dropdown to select bank from UI
+    bank = st.selectbox("Select your bank statement", list(BANK_PARSERS.keys()))
+    uploaded_file = st.file_uploader("Upload your bank statement:")
 
     # Block the rest of the app until a file is uploaded
     if uploaded_file is None:
         st.info("Please upload bank statement to continue.")
         st.stop()  # hard stop: nothing below this line runs in this rerun
 
-    data = pandas.read_csv(uploaded_file)
-    data.drop(columns=['Balance'], inplace=True)
-    data.drop(columns=['Value Date'], inplace=True)
-    data.drop(columns=['Ref No./Cheque No.'], inplace=True)
-    col_description = data["Description"]
+    # any bank should return only columns: date, debit, credit, description
+    # from their individual modules
+    data = BANK_PARSERS[bank](uploaded_file)
+    col_description = data["description"]
 
     return data,col_description
 
@@ -144,7 +153,7 @@ def expense_per_category(count_credit_transactions):
         # category_type = "party"
         # total_debit = 0
         if data is not None and not data.empty:
-            col_debit = data.get("Debit")
+            col_debit = data.get("debit")
         category_to_update_csv = []
         tags_to_update_csv = []
         for number in range(len(col_description)):
@@ -167,8 +176,8 @@ def expense_per_category(count_credit_transactions):
                 cursor.execute("SELECT category, tags FROM table_category WHERE shop = ?", (shop,))
                 shop_s_category = cursor.fetchone()
                 # jis category ka mile uska debit variable add ho
-                debit_amount = col_debit[number]
-                debit_amount_float = float(debit_amount.replace(',', ''))
+                # contract me debit ab float hai -- string cleanup ki zaroorat nahi
+                debit_amount_float = col_debit[number]
                 found_category = shop_s_category[0]
                 found_tags = shop_s_category[1]
                 category_to_update_csv.append(found_category)
@@ -207,16 +216,15 @@ def send_to_firefly(api_token, firefly_bank_id):
     #####################################
     with st.spinner("sending data in-progress ...", show_time=True):
         temp_df = data
-        temp_df.rename(columns={'Txn Date': 'date', 'Description': 'description', 'tagged category': 'category_name'},
-                       inplace=True)
+        temp_df.rename(columns={'tagged category': 'category_name'}, inplace=True)
 
-        withdrawal_df = temp_df[temp_df['Credit'].isna()]  # rows where credit is None/NaN
-        withdrawal_df.drop(columns=['Credit'], inplace=True)
-        withdrawal_df.rename(columns={'Debit': 'amount'}, inplace=True)
+        withdrawal_df = temp_df[temp_df['credit'].isna()]  # rows where credit is None/NaN
+        withdrawal_df.drop(columns=['credit'], inplace=True)
+        withdrawal_df.rename(columns={'debit': 'amount'}, inplace=True)
 
-        deposit_df = temp_df[temp_df['Debit'].isna()]  # rows where debit is None/NaN
-        deposit_df.drop(columns=['Debit'], inplace=True)
-        deposit_df.rename(columns={'Credit': 'amount'}, inplace=True)
+        deposit_df = temp_df[temp_df['debit'].isna()]  # rows where debit is None/NaN
+        deposit_df.drop(columns=['debit'], inplace=True)
+        deposit_df.rename(columns={'credit': 'amount'}, inplace=True)
 
         ### send deposit data to firefly ###
         for index, row in deposit_df.iterrows():
@@ -224,13 +232,11 @@ def send_to_firefly(api_token, firefly_bank_id):
             # goes row by row
             # make format that firefly will accept
             json_data = row.to_dict()
-            json_payload = json.dumps(json_data) # contains date, description, amount, category_name, tags
-            date_obj = datetime.strptime(json_data["date"], "%d %B %Y")
-            formatted_date = date_obj.strftime("%Y-%m-%d")
+            formatted_date = json_data["date"].strftime("%Y-%m-%d")
             transaction = {
                 "type": "deposit",
                 "date": formatted_date,
-                "amount": json_data["amount"].replace(",", ""),  # optional: clean amount formatting
+                "amount": str(json_data["amount"]),
                 "description": json_data["description"],
                 "destination_id": firefly_bank_id
             }
@@ -255,13 +261,11 @@ def send_to_firefly(api_token, firefly_bank_id):
             # goes row by row
             # make format that firefly will accept
             json_data = row.to_dict()
-            json_payload = json.dumps(json_data) # contains date, description, amount, category_name, tags
-            date_obj = datetime.strptime(json_data["date"], "%d %B %Y")
-            formatted_date = date_obj.strftime("%Y-%m-%d")
+            formatted_date = json_data["date"].strftime("%Y-%m-%d")
             transaction = {
                 "type": "withdrawal",
                 "date": formatted_date,
-                "amount": json_data["amount"].replace(",", ""),  # optional: clean amount formatting
+                "amount": str(json_data["amount"]),
                 "description": json_data["description"],
                 "source_id": firefly_bank_id,
                 "category_name": json_data["category_name"],
