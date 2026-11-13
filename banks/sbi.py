@@ -23,11 +23,19 @@ def parse(uploaded_file):
     data = data[["date", "debit", "credit", "description"]]
 
     # contract types: date -> datetime, debit/credit -> float (khaali side = NaN)
-    # (SBI CSV strings deta hai: "01 July 2026", "1,234.00" -- isey typed banana padta hai)
-    data["date"] = pd.to_datetime(data["date"], format="%d %B %Y")
+    # (SBI CSV strings deta hai: "1 Mar 2025", "1,234.00" -- isey typed banana padta hai)
+    data["date"] = pd.to_datetime(data["date"], format="%d %b %Y")
     for col in ("debit", "credit"):
         data[col] = pd.to_numeric(
             data[col].astype(str).str.replace(",", "", regex=False),
             errors="coerce",
         )
-    return data
+
+    # shop + comment description se nikaalo (SBI ka apna format):
+    # "TO TRANSFER-UPI/DR/<ref>/<SHOP>/<BANK>/<vpa>/<comment>"
+    # -> shop = parts[3], comment = parts[-1]. jin rows me '/' structure nahi (e.g. credit), "" rakho
+    parts = data["description"].astype(str).str.split("/")
+    data["shop"] = parts.apply(lambda p: p[3].strip().lower() if len(p) > 3 else "")
+    data["comment"] = parts.apply(lambda p: p[-1].strip().lower() if p else "")
+
+    return data[["date", "debit", "credit", "description", "shop", "comment"]]

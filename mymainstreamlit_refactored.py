@@ -92,14 +92,13 @@ def expense_category(col_description, my_tags_list_test):
 
         # goes through each row and updates expense category in database
         for number in range(len(col_description)):
-            each_row = col_description[number]
-            if each_row.startswith("BY") or each_row.startswith("CREDIT") or each_row.startswith("by"):
-                # TODO: count_credit_transactions ki zaroorat hai?
+            # credit (deposit) row -> categorise nahi karte. credit column (NaN nahi) se detect karo
+            if pandas.notna(data["credit"][number]):
                 count_credit_transactions += 1
                 continue
-            parts = each_row.split('/')
-            shop = parts[3].strip().lower()
-            comment = parts[-1].lower()
+            # shop + comment ab har bank apne module me nikaal ke deta hai (contract columns)
+            shop = data["shop"][number]
+            comment = data["comment"][number]
 
             # check if shop details already exists in db
             cursor.execute("SELECT * FROM table_category WHERE shop = ? LIMIT 1", (shop,))
@@ -157,16 +156,13 @@ def expense_per_category(count_credit_transactions):
         category_to_update_csv = []
         tags_to_update_csv = []
         for number in range(len(col_description)):
-            each_row = col_description[number]
-            if each_row.startswith("BY") or each_row.startswith("CREDIT") or each_row.startswith(
-                    "BULK") or each_row.startswith("by"):
-                # self-note: BULK match needs to be added for one jan 31 transaction
+            # credit (deposit) row -> credit column (NaN nahi) se detect karo
+            if pandas.notna(data["credit"][number]):
                 count_credit_transactions += 1
                 category_to_update_csv.append('credit')
                 tags_to_update_csv.append('credit')
                 continue
-            parts = each_row.split('/')
-            shop = parts[3].strip().lower()
+            shop = data["shop"][number]
 
             # check if shop details already exists in db
             cursor.execute("SELECT 1 FROM table_category WHERE shop = ? LIMIT 1", (shop,))

@@ -35,8 +35,8 @@ COLUMNS = [
     "Remarks", "Withdrawal", "Deposit", "Balance",
 ]
 
-# shared "contract" har bank module ko ye 4 columns return karne hai
-CONTRACT_COLUMNS = ["date", "debit", "credit", "description"]
+# shared "contract" har bank module ko ye columns return karne hai
+CONTRACT_COLUMNS = ["date", "debit", "credit", "description", "shop", "comment"]
 
 
 def group_into_lines(words, tol=3):
@@ -162,13 +162,19 @@ def _extract_full(pdf_source):
 
 def to_contract(df):
     """Fully-parsed statement ko shared bank contract me map karta hai:
-    date, debit (withdrawal = paisa gaya), credit (deposit = paisa aaya), description.
-    jo side use nahi hui wo NaN rehti hai."""
+    date, debit (withdrawal = paisa gaya), credit (deposit = paisa aaya),
+    description, shop, comment. jo side use nahi hui wo NaN rehti hai."""
+    # ICICI remark format: "UPI/<shop>/<vpa>/<comment>/<bank>/..."
+    # shop = Payee line (= remark ka parts[1], aur non-UPI rows me bhi safe)
+    # comment = remark ka parts[3] (e.g. "June rent", "badminton")
+    parts = df["Remarks"].str.split("/")
     return pd.DataFrame({
         "date": df["Date"],
         "debit": df["Withdrawal"],
         "credit": df["Deposit"],
         "description": df["Remarks"],
+        "shop": df["Payee"].fillna("").str.strip().str.lower(),
+        "comment": parts.apply(lambda p: p[3].strip().lower() if len(p) > 3 else ""),
     })
 
 
